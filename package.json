@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-migrator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Import local AI-agent chat sessions (WorkBuddy, pi, Codex, opencode, zcode, Claude Code, Cursor) into DeepSeek Harness (DSH) as native v4 sessions.",
   "type": "module",
   "bin": {

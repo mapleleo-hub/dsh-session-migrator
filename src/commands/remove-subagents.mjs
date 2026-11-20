@@ -16,18 +16,22 @@ import { loadDoc, saveDoc } from '../workspace.mjs';
 import { parseArgs, warnForceRestart } from '../common.mjs';
 
 export function help() {
-  return `dsh-session-migrator remove-subagents [--apply]
+  return `dsh-session-migrator remove-subagents [--apply] [--purge]
 
 Deletes imported WorkBuddy sub-agent sessions (wb-<uuid>) from DSH:
   - session dirs under <sessionsRoot>/*/wb-<uuid>/
   - projection cache files under the proj-cache dir
   - their ids in every workspace sessionIds / archivedSessionIds
 
-Dry-run by default; --apply deletes and backs workspace.json up first.
+Dry-run by default; --apply acts and backs workspace.json up first.
+By default removed session dirs / cache rows are MOVED to
+  <DSH_HOME>/.session-migrator-trash/<timestamp>/
+so the operation is recoverable; pass --purge to delete permanently.
 
 Usage:
   dsh-session-migrator remove-subagents
-  dsh-session-migrator remove-subagents --apply`;
+  dsh-session-migrator remove-subagents --apply
+  dsh-session-migrator remove-subagents --apply --purge`;
 }
 
 function walkSubagents(dir, out) {
@@ -64,6 +68,7 @@ function findDshDir(id) {
 export function run(argv) {
   const opts = parseArgs(argv, []);
   const apply = Boolean(opts.apply);
+  const purge = Boolean(opts.purge || opts['purge-deleted']);
 
   const subFiles = [];
   walkSubagents(config.workbuddyProjects, subFiles);
@@ -108,21 +113,48 @@ export function run(argv) {
     return;
   }
 
+  const dshHome = path.dirname(path.dirname(config.workspaceJson));
+  const tag = new Date().toISOString().replace(/[:.]/g, '-');
+  const trash = path.join(dshHome, '.session-migrator-trash', tag);
   let delDir = 0;
   let delCache = 0;
+  let trashedDir = 0;
+  let trashedCache = 0;
+  const moveOrDelete = (src, destRel, isDir) => {
+    if (purge) {
+      if (isDir) fs.rmSync(src, { recursive: true, force: true });
+      else fs.unlinkSync(src);
+      return isDir ? 'delDir' : 'delCache';
+    }
+    const dest = path.join(trash, destRel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    try {
+      fs.renameSync(src, dest);
+      return isDir ? 'trashedDir' : 'trashedCache';
+    } catch {
+      if (isDir) fs.rmSync(src, { recursive: true, force: true });
+      else fs.unlinkSync(src);
+      return isDir ? 'delDir' : 'delCache';
+    }
+  };
   for (const p of plan) {
     if (p.dir) {
-      fs.rmSync(p.dir, { recursive: true, force: true });
-      delDir++;
+      const r = moveOrDelete(p.dir, path.join('sessions', path.basename(path.dirname(p.dir)), path.basename(p.dir)), true);
+      if (r === 'delDir') delDir++;
+      else trashedDir++;
     }
     const c = path.join(config.projCacheDir, 'wb-' + p.id + '.json');
     if (fs.existsSync(c)) {
-      fs.unlinkSync(c);
-      delCache++;
+      const r = moveOrDelete(c, path.join('cache', path.basename(c)), false);
+      if (r === 'delCache') delCache++;
+      else trashedCache++;
     }
   }
   const backup = saveDoc(doc, config.workspaceJson, 'subagent');
-  console.log(`[applied] deleted dirs: ${delDir}, cache: ${delCache}, refs: ${refsRemoved}`);
+  console.log(
+    `[applied] trashed dirs: ${trashedDir}, cache: ${trashedCache}; purged dirs: ${delDir}, cache: ${delCache}; refs: ${refsRemoved}`
+  );
+  if (!purge) console.log('[applied] trash dir (delete later if you are sure):', trash);
   console.log('[applied] workspace backup:', backup);
   warnForceRestart();
 }

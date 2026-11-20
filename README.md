@@ -108,7 +108,7 @@ dsh-session-migrator remove-subagents --apply
 1. **默认 dry-run。** 所有会写盘/删文件的命令，不加 `--apply` 都只打印计划。
 2. **备份。** 改写 `workspace.json` 前先复制为 `workspace.json.bak-<tag>-<iso>`；
    改写会话文件前复制为 `<file>.bak-<tag>`。
-3. **删除需显式确认。** `remove-subagents` 要 `--apply` 才删；`fix-project-key` 合并时遇到冲突会拒绝覆盖。
+3. **删除可恢复。** `remove-subagents` 需 `--apply` 才执行，且默认把被删的会话目录/缓存**移动到** `<DSH_HOME>/.session-migrator-trash/<时间戳>/`（可手动恢复）；确认无误再加 `--purge` 永久删除。`fix-project-key` 合并时遇到冲突会拒绝覆盖。
 4. **必须强制重启 DSH。** DSH 运行中会把 `workspace.json` 缓存在内存里，正常退出时会**写回内存副本**，
    冲掉你刚改的内容。所以写入后请**彻底强杀再重开**：
    ```bat
