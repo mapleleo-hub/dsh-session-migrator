@@ -49,6 +49,7 @@ Options:
   --only <id>      import only the conversation with this original id
   --limit <n>      max sessions listed per source (default 1000000)
   --force          overwrite existing session files instead of skipping
+  --include-subagents  also import WorkBuddy sub-agent transcripts (default: skip)
   --no-workspace   build session files but do not touch workspace.json
 
 Examples:
@@ -77,6 +78,13 @@ function collect(sources, opts) {
       let arr = listSource(src, { limit: opts.limit });
       let n = 0;
       for (const it of arr) {
+        const refStr = String(it.ref || '');
+        const isSubagent =
+          /[\\/]subagents[\\/]/i.test(refStr) || /(^|[\\/])agent-[^\\/]*\.jsonl$/i.test(refStr);
+        if (isSubagent && !opts.includeSubagents) {
+          skipped.push([src, it.id, 'subagent']);
+          continue;
+        }
         const cwd = cwdOf(it.ref);
         if (!cwd) {
           skipped.push([src, it.id, 'no cwd']);
@@ -152,12 +160,14 @@ export function run(argv) {
   const apply = Boolean(opts0.apply);
   const force = Boolean(opts0.force);
   const noWorkspace = Boolean(opts0['no-workspace']);
+  const limitNum = Number(opts0.limit);
   const opts = {
     apply,
     force,
     pilot: Boolean(opts0.pilot),
+    includeSubagents: Boolean(opts0['include-subagents']),
     only: opts0.only && opts0.only !== true ? opts0.only : null,
-    limit: opts0.limit ? Number(opts0.limit) : 1000000,
+    limit: Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 1000000,
   };
   const sources = opts0.sources ? csv(opts0.sources) : ALL_SOURCES;
   for (const s of sources) {
@@ -182,6 +192,13 @@ export function run(argv) {
   let skip = 0;
   let noMsg = 0;
   const perSource = {};
+  // ids actually present on disk per group path (written now or already existing)
+  const presentByPath = new Map();
+  const markPresent = (p, id, ts) => {
+    let a = presentByPath.get(p);
+    if (!a) presentByPath.set(p, (a = []));
+    a.push({ id, ts });
+  };
 
   for (const g of groups) {
     const pdir = projectDir(g.path);
@@ -194,6 +211,7 @@ export function run(argv) {
         if (fs.existsSync(target) && !force) {
           skip++;
           perSource[s.src].skip++;
+          markPresent(g.path, s.newId, s.ts);
           continue;
         }
         if (!apply) {
@@ -218,6 +236,7 @@ export function run(argv) {
         verify(file, newId);
         ok++;
         perSource[s.src].ok++;
+        markPresent(g.path, s.newId, s.ts);
       } catch (e) {
         fail++;
         perSource[s.src].fail++;
@@ -237,15 +256,19 @@ export function run(argv) {
     return;
   }
 
-  // Register in workspace.json: strip our own ids, then merge per group.
+  // Register in workspace.json. Only strip ids of the sources processed in THIS
+  // run (never other sources' imports), and only register ids that are actually
+  // present on disk (skip noMsg / failed writes to avoid dangling references).
   const doc = loadDoc();
-  stripIdsFromAll(doc, (id) => OWN_PREFIX.test(id));
+  stripIdsFromAll(doc, (id) => sources.some((s) => id.startsWith(PREFIX[s])));
   const created = [];
   for (const g of groups) {
-    const ids = g.sessions
+    const present = presentByPath.get(g.path) || [];
+    if (present.length === 0) continue;
+    const ids = present
       .slice()
-      .sort((a, b) => (b.ts || 0) - (a.ts || 0) || String(a.newId).localeCompare(String(b.newId)))
-      .map((s) => s.newId);
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0) || String(a.id).localeCompare(String(b.id)))
+      .map((x) => x.id);
     const id = mergeIntoWorkspace(doc, { path: g.path, title: g.title, ids });
     created.push({ title: g.title, path: g.path, count: ids.length, id });
   }

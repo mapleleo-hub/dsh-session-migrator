@@ -71,6 +71,9 @@ dsh-session-migrator import --sources workbuddy,codex --apply
 # 每条来源各取 1 条先试点
 dsh-session-migrator import --pilot --apply
 
+# 连 WorkBuddy 子代理（subagents/agent-*.jsonl）一起导（默认会跳过）
+dsh-session-migrator import --sources workbuddy --include-subagents --apply
+
 # 按原始项目目录重新归组 WorkBuddy/pi
 dsh-session-migrator regroup --apply
 
@@ -94,6 +97,7 @@ dsh-session-migrator remove-subagents --apply
 
 - `import --sources a,b`：限定来源（默认全部）
 - `import --pilot`：每条来源各试点 1 条
+- `import --include-subagents`：也导入 WorkBuddy 子代理会话（默认跳过 `subagents/agent-*.jsonl`）
 - `import --only <id>`：只导某一条原始会话
 - `import --force`：覆盖已存在的同名会话文件（默认跳过）
 - `import --no-workspace`：只生成会话文件，不动 workspace.json

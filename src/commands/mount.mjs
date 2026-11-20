@@ -71,7 +71,7 @@ export function run(argv) {
         skipped.push([d.name, `header id ${h.id}`]);
         continue;
       }
-      if (h.cwd !== wsPath) {
+      if (String(h.cwd).toLowerCase() !== String(wsPath).toLowerCase()) {
         skipped.push([d.name, `cwd ${h.cwd}`]);
         continue;
       }

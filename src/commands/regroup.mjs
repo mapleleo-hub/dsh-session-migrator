@@ -43,6 +43,7 @@ export function run(argv) {
     const arr = listSource(src, { limit: 1000000 });
     let n = 0;
     for (const it of arr) {
+      if (String(it.ref || '').toLowerCase().includes('subagents')) continue;
       const cwd = cwdOf(it.ref);
       if (!cwd) {
         console.warn('[warn] no cwd', src, it.id);
