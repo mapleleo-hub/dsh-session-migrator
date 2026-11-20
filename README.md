@@ -51,6 +51,14 @@ node bin/cli.mjs --help
 npm link          # 之后可用 dsh-session-migrator <cmd>
 ```
 
+## 测试
+
+```bash
+npm test        # 或 node --test，运行 node:test 单元测试
+```
+
+CI：`.github/workflows/ci.yml` 会在 Ubuntu / Windows + Node 22 上跑 `node --test` 和 `--help`。
+
 ## 用法
 
 所有命令**默认 dry-run（只打印计划，不写盘）**，加 `--apply` 才真正写入。
