@@ -1,0 +1,38 @@
+{
+  "name": "dsh-session-migrator",
+  "version": "0.1.0",
+  "description": "Import local AI-agent chat sessions (WorkBuddy, pi, Codex, opencode, zcode, Claude Code, Cursor) into DeepSeek Harness (DSH) as native v4 sessions.",
+  "type": "module",
+  "bin": {
+    "dsh-session-migrator": "bin/cli.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "help": "node bin/cli.mjs --help",
+    "doctor": "node bin/cli.mjs doctor",
+    "scan": "node bin/cli.mjs scan"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "session",
+    "migrator",
+    "importer",
+    "zstd",
+    "codex",
+    "claude-code",
+    "cursor",
+    "workbuddy"
+  ],
+  "license": "MIT",
+  "author": "mapleo-hub",
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ]
+}
